@@ -22,7 +22,9 @@ func expandToGitHubURL(tenant, ownerOrRepo string) string {
 }
 
 func newEnforcementCriteria(opts *Options) (verification.EnforcementCriteria, error) {
-	var c verification.EnforcementCriteria
+	c := verification.EnforcementCriteria{
+		PredicateType: opts.PredicateType,
+	}
 
 	// Set SANRegex using either the opts.SignerRepo or opts.SignerWorkflow values
 	if opts.SignerRepo != "" {
@@ -79,8 +81,6 @@ func newEnforcementCriteria(opts *Options) (verification.EnforcementCriteria, er
 		// otherwise use the custom OIDC issuer provided as an option
 		c.Certificate.Issuer = opts.OIDCIssuer
 	}
-
-	c.PredicateType = opts.PredicateType
 
 	return c, nil
 }
