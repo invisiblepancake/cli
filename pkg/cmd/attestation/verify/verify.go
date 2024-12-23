@@ -157,9 +157,6 @@ func NewVerifyCmd(f *cmdutil.Factory, runF func(*Options) error) *cobra.Command 
 				opts.Tenant = tenant
 			}
 
-			// set policy flags based on what has been provided
-			opts.SetPolicyFlags()
-
 			if runF != nil {
 				return runF(opts)
 			}
