@@ -68,8 +68,10 @@ func NewCmdLogin(f *cmdutil.Factory, runF func(*LoginOptions) error) *cobra.Comm
 			to writing the token to a plain text file. See %[1]sgh auth status%[1]s for its
 			stored location.
 
-			Alternatively, use %[1]s--with-token%[1]s to pass in a token on standard input.
+			Alternatively, use %[1]s--with-token%[1]s to pass in a personal access token (classic) on standard input.
 			The minimum required scopes for the token are: %[1]srepo%[1]s, %[1]sread:org%[1]s, and %[1]sgist%[1]s.
+
+			Fine-grained personal access tokens are not supported.
 
 			Alternatively, gh will use the authentication token found in environment variables.
 			This method is most suitable for "headless" use of gh such as in automation. See
