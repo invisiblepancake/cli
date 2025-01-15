@@ -1,7 +1,6 @@
 package create
 
 import (
-	ctx "context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1626,6 +1625,7 @@ func Test_tryDetermineTrackingRef(t *testing.T) {
 	tests := []struct {
 		name                string
 		cmdStubs            func(*run.CommandStubber)
+		headBranchConfig    git.BranchConfig
 		remotes             context.Remotes
 		expectedTrackingRef trackingRef
 		expectedFound       bool
@@ -1633,18 +1633,18 @@ func Test_tryDetermineTrackingRef(t *testing.T) {
 		{
 			name: "empty",
 			cmdStubs: func(cs *run.CommandStubber) {
-				cs.Register(`git config --get-regexp.+branch\\\.feature\\\.`, 0, "")
 				cs.Register(`git show-ref --verify -- HEAD`, 0, "abc HEAD")
 			},
+			headBranchConfig:    git.BranchConfig{},
 			expectedTrackingRef: trackingRef{},
 			expectedFound:       false,
 		},
 		{
 			name: "no match",
 			cmdStubs: func(cs *run.CommandStubber) {
-				cs.Register(`git config --get-regexp.+branch\\\.feature\\\.`, 0, "")
 				cs.Register("git show-ref --verify -- HEAD refs/remotes/upstream/feature refs/remotes/origin/feature", 0, "abc HEAD\nbca refs/remotes/upstream/feature")
 			},
+			headBranchConfig: git.BranchConfig{},
 			remotes: context.Remotes{
 				&context.Remote{
 					Remote: &git.Remote{Name: "upstream"},
@@ -1661,13 +1661,13 @@ func Test_tryDetermineTrackingRef(t *testing.T) {
 		{
 			name: "match",
 			cmdStubs: func(cs *run.CommandStubber) {
-				cs.Register(`git config --get-regexp.+branch\\\.feature\\\.`, 0, "")
 				cs.Register(`git show-ref --verify -- HEAD refs/remotes/upstream/feature refs/remotes/origin/feature$`, 0, heredoc.Doc(`
 		deadbeef HEAD
 		deadb00f refs/remotes/upstream/feature
 		deadbeef refs/remotes/origin/feature
 	`))
 			},
+			headBranchConfig: git.BranchConfig{},
 			remotes: context.Remotes{
 				&context.Remote{
 					Remote: &git.Remote{Name: "upstream"},
@@ -1687,14 +1687,14 @@ func Test_tryDetermineTrackingRef(t *testing.T) {
 		{
 			name: "respect tracking config",
 			cmdStubs: func(cs *run.CommandStubber) {
-				cs.Register(`git config --get-regexp.+branch\\\.feature\\\.`, 0, heredoc.Doc(`
-		branch.feature.remote origin
-		branch.feature.merge refs/heads/great-feat
-	`))
 				cs.Register(`git show-ref --verify -- HEAD refs/remotes/origin/great-feat refs/remotes/origin/feature$`, 0, heredoc.Doc(`
 		deadbeef HEAD
 		deadb00f refs/remotes/origin/feature
 	`))
+			},
+			headBranchConfig: git.BranchConfig{
+				RemoteName: "origin",
+				MergeRef:   "refs/heads/great-feat",
 			},
 			remotes: context.Remotes{
 				&context.Remote{
@@ -1717,8 +1717,8 @@ func Test_tryDetermineTrackingRef(t *testing.T) {
 				GhPath:  "some/path/gh",
 				GitPath: "some/path/git",
 			}
-			headBranchConfig := gitClient.ReadBranchConfig(ctx.Background(), "feature")
-			ref, found := tryDetermineTrackingRef(gitClient, tt.remotes, "feature", headBranchConfig)
+
+			ref, found := tryDetermineTrackingRef(gitClient, tt.remotes, "feature", tt.headBranchConfig)
 
 			assert.Equal(t, tt.expectedTrackingRef, ref)
 			assert.Equal(t, tt.expectedFound, found)

@@ -263,17 +263,17 @@ func NewCmdCreate(f *cmdutil.Factory, runF func(*CreateOptions) error) *cobra.Co
 	return cmd
 }
 
-func createRun(opts *CreateOptions) (err error) {
+func createRun(opts *CreateOptions) error {
 	ctx, err := NewCreateContext(opts)
 	if err != nil {
-		return
+		return err
 	}
 
 	client := ctx.Client
 
 	state, err := NewIssueState(*ctx, *opts)
 	if err != nil {
-		return
+		return err
 	}
 
 	var openURL string
@@ -288,15 +288,15 @@ func createRun(opts *CreateOptions) (err error) {
 		}
 		err = handlePush(*opts, *ctx)
 		if err != nil {
-			return
+			return err
 		}
 		openURL, err = generateCompareURL(*ctx, *state)
 		if err != nil {
-			return
+			return err
 		}
 		if !shared.ValidURL(openURL) {
 			err = fmt.Errorf("cannot open in browser: maximum URL length exceeded")
-			return
+			return err
 		}
 		return previewPR(*opts, openURL)
 	}
@@ -344,7 +344,7 @@ func createRun(opts *CreateOptions) (err error) {
 	if !opts.EditorMode && (opts.FillVerbose || opts.Autofill || opts.FillFirst || (opts.TitleProvided && opts.BodyProvided)) {
 		err = handlePush(*opts, *ctx)
 		if err != nil {
-			return
+			return err
 		}
 		return submitPR(*opts, *ctx, *state)
 	}
@@ -368,7 +368,7 @@ func createRun(opts *CreateOptions) (err error) {
 			var template shared.Template
 			template, err = tpl.Select(opts.Template)
 			if err != nil {
-				return
+				return err
 			}
 			if state.Title == "" {
 				state.Title = template.Title()
@@ -378,18 +378,18 @@ func createRun(opts *CreateOptions) (err error) {
 
 		state.Title, state.Body, err = opts.TitledEditSurvey(state.Title, state.Body)
 		if err != nil {
-			return
+			return err
 		}
 		if state.Title == "" {
 			err = fmt.Errorf("title can't be blank")
-			return
+			return err
 		}
 	} else {
 
 		if !opts.TitleProvided {
 			err = shared.TitleSurvey(opts.Prompter, opts.IO, state)
 			if err != nil {
-				return
+				return err
 			}
 		}
 
@@ -403,12 +403,12 @@ func createRun(opts *CreateOptions) (err error) {
 				if opts.Template != "" {
 					template, err = tpl.Select(opts.Template)
 					if err != nil {
-						return
+						return err
 					}
 				} else {
 					template, err = tpl.Choose()
 					if err != nil {
-						return
+						return err
 					}
 				}
 
@@ -419,13 +419,13 @@ func createRun(opts *CreateOptions) (err error) {
 
 			err = shared.BodySurvey(opts.Prompter, state, templateContent)
 			if err != nil {
-				return
+				return err
 			}
 		}
 
 		openURL, err = generateCompareURL(*ctx, *state)
 		if err != nil {
-			return
+			return err
 		}
 
 		allowPreview := !state.HasMetadata() && shared.ValidURL(openURL) && !opts.DryRun
@@ -444,12 +444,12 @@ func createRun(opts *CreateOptions) (err error) {
 			}
 			err = shared.MetadataSurvey(opts.Prompter, opts.IO, ctx.BaseRepo, fetcher, state)
 			if err != nil {
-				return
+				return err
 			}
 
 			action, err = shared.ConfirmPRSubmission(opts.Prompter, !state.HasMetadata() && !opts.DryRun, false, state.Draft)
 			if err != nil {
-				return
+				return err
 			}
 		}
 	}
@@ -457,12 +457,12 @@ func createRun(opts *CreateOptions) (err error) {
 	if action == shared.CancelAction {
 		fmt.Fprintln(opts.IO.ErrOut, "Discarding.")
 		err = cmdutil.CancelError
-		return
+		return err
 	}
 
 	err = handlePush(*opts, *ctx)
 	if err != nil {
-		return
+		return err
 	}
 
 	if action == shared.PreviewAction {
@@ -479,7 +479,7 @@ func createRun(opts *CreateOptions) (err error) {
 	}
 
 	err = errors.New("expected to cancel, preview, or submit")
-	return
+	return err
 }
 
 var regexPattern = regexp.MustCompile(`(?m)^`)
@@ -680,7 +680,10 @@ func NewCreateContext(opts *CreateOptions) (*CreateContext, error) {
 	var headRepo ghrepo.Interface
 	var headRemote *ghContext.Remote
 
-	headBranchConfig := gitClient.ReadBranchConfig(context.Background(), headBranch)
+	headBranchConfig, err := gitClient.ReadBranchConfig(context.Background(), headBranch)
+	if err != nil {
+		return nil, err
+	}
 	if isPushEnabled {
 		// determine whether the head branch is already pushed to a remote
 		if trackingRef, found := tryDetermineTrackingRef(gitClient, remotes, headBranch, headBranchConfig); found {
